@@ -26,7 +26,7 @@ public class Tester {
         // This method checks the Context used by our SCIFIO instance for all its
         // known format plugins, and returns an io.scif.Reader capable of opening
         // the specified image's planes.
-        final Reader reader = scifio.initializer().initializeReader(new FileLocation("D:\\Github\\scifio\\src\\main\\java\\io\\scif\\formats\\small_uncompressed_new.psi"));
+        final Reader reader = scifio.initializer().initializeReader(new FileLocation("C:\\Users\\jshaw\\Desktop\\scifio-master\\src\\main\\java\\io\\scif\\formats\\small_uncompressed_new.psi"));
         final BMPFormat BMPFormat =
                 scifio.format().getFormatFromClass(BMPFormat.class);
         final BMPFormat.Reader reader2 = (io.scif.formats.BMPFormat.Reader) BMPFormat.createReader();
