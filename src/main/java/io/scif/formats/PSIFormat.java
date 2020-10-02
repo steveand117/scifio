@@ -145,7 +145,7 @@ public class PSIFormat extends AbstractFormat {
 
         @Override
         public void populateImageMetadata() {
-            final ImageMetadata meta2D = get(0);
+            final ImageMetadata meta2D = get(PSIFormat.imageIndex2D);
 
             meta2D.setPlanarAxisCount(2);
             meta2D.setLittleEndian(true);
@@ -153,7 +153,7 @@ public class PSIFormat extends AbstractFormat {
             meta2D.setFalseColor(false);
             meta2D.setMetadataComplete(true);
 
-            final ImageMetadata meta3D = get(1);
+            final ImageMetadata meta3D = get(PSIFormat.imageIndex3D);
 
             meta3D.setPlanarAxisCount(2);
             meta3D.setLittleEndian(true);
@@ -300,6 +300,8 @@ public class PSIFormat extends AbstractFormat {
             meta.setOffset3D(getSource().offset());
             System.out.println("3D Image Data Offset: " + meta.getOffset3D());
 
+            System.out.println("3D Image Data Size: " + dataSize3D);
+
             if (dataSize2D == 0 && dataSize3D == 0) {
                 throw new FormatException("No 2D or 3D Image Data Present");
             }
@@ -307,11 +309,17 @@ public class PSIFormat extends AbstractFormat {
             if (dataSize2D > 0) {
                 meta2D.setAxisLength(Axes.X, meta.getWidth2D());
                 meta2D.setAxisLength(Axes.Y, meta.getLength2D());
+                if (bitDepth2D == 8) {
+                    meta2D.setPixelType(FormatTools.UINT8);
+                }
             }
 
             if (dataSize3D > 0) {
                 meta3D.setAxisLength(Axes.X, meta.getWidth3D());
                 meta3D.setAxisLength(Axes.Y, meta.getLength3D());
+                if (bitDepth3D == 16) {
+                    meta3D.setPixelType(FormatTools.UINT16);
+                }
             }
 
 //            System.out.println("2D Width: " + table2D.get("Width"));
