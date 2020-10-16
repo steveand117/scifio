@@ -1,7 +1,10 @@
 package io.scif.formats;
 
 import io.scif.*;
+import io.scif.config.SCIFIOConfig;
+import org.scijava.io.handle.DataHandleService;
 import org.scijava.io.location.FileLocation;
+import org.scijava.plugin.Parameter;
 
 import java.io.IOException;
 
@@ -9,6 +12,7 @@ public class Tester {
     public static void main(final String... agrs) throws FormatException,
             IOException
     {
+
         // The most convenient way to program against the SCIFIO API is by using
         // an io.scif.SCIFIO instance. This is basically a "SCIFIO lens" on an
         // org.scijava.Context instance. There are several ways to create a SCIFIO
@@ -26,7 +30,12 @@ public class Tester {
         // This method checks the Context used by our SCIFIO instance for all its
         // known format plugins, and returns an io.scif.Reader capable of opening
         // the specified image's planes.
-        final Reader reader = scifio.initializer().initializeReader(new FileLocation("C:\\Users\\jshaw\\Desktop\\scifio-master\\src\\main\\java\\io\\scif\\formats\\small_uncompressed_new.psi"));
+        final PSIFormat format = scifio.format().getFormatFromClass(PSIFormat.class);
+        final PSIFormat.Checker checker = (io.scif.formats.PSIFormat.Checker) format.createChecker();
+        final SCIFIOConfig config = new SCIFIOConfig();
+        config.checkerSetOpen(true);
+        boolean correctFormat = checker.isFormat(new FileLocation("C:\\Users\\jshaw\\Desktop\\scifio\\src\\main\\java\\io\\scif\\formats\\small_uncompressed_new.psi"), config);
+        final Reader reader = scifio.initializer().initializeReader(new FileLocation("C:\\Users\\jshaw\\Desktop\\scifio\\src\\main\\java\\io\\scif\\formats\\small_uncompressed_new.psi"), config);
         final BMPFormat BMPFormat =
                 scifio.format().getFormatFromClass(BMPFormat.class);
         final BMPFormat.Reader reader2 = (io.scif.formats.BMPFormat.Reader) BMPFormat.createReader();
