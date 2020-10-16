@@ -24,11 +24,184 @@ import org.scijava.plugin.Plugin;
 @Plugin(type = Format.class, name = "Pavement Surface Image")
 public class PSIFormat extends AbstractFormat {
 
+    public enum DATA_BIT_DEPTH_2D {
+        DEPTH8(8);
+
+        private final int value;
+
+        DATA_BIT_DEPTH_2D(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+
+        public static boolean inEnum(int checkValue) {
+            DATA_BIT_DEPTH_2D[] enumValues = DATA_BIT_DEPTH_2D.values();
+            for (DATA_BIT_DEPTH_2D enumValue : enumValues) {
+                if (enumValue.getValue() == checkValue) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    public enum DATA_BIT_DEPTH_3D {
+        DEPTH16(16);
+
+        private final int value;
+
+        DATA_BIT_DEPTH_3D(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+
+        public static boolean inEnum(int checkValue) {
+            DATA_BIT_DEPTH_3D[] enumValues = DATA_BIT_DEPTH_3D.values();
+            for (DATA_BIT_DEPTH_3D enumValue : enumValues) {
+                if (enumValue.getValue() == checkValue) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    public enum CODEC_2D {
+        BIN_UNCOMPRESSED(0), BIN_ZIP(1), JPEG(2), PNG(3);
+
+        private final int value;
+
+        CODEC_2D(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+
+        public static boolean inEnum(int checkValue) {
+            CODEC_2D[] enumValues = CODEC_2D.values();
+            for (CODEC_2D enumValue : enumValues) {
+                if (enumValue.getValue() == checkValue) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    public enum CODEC_3D {
+        BIN_UNCOMPRESSED(0), BIN_ZIP(1), OPENCRG_UNCOMPRESSED(2), OPENCRG_ZIP(3), JPEG2000(4);
+
+        private final int value;
+
+        CODEC_3D(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+
+        public static boolean inEnum(int checkValue) {
+            CODEC_3D[] enumValues = CODEC_3D.values();
+            for (CODEC_3D enumValue : enumValues) {
+                if (enumValue.getValue() == checkValue) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    public enum REGISTRATION_3D {
+        REGISTERED(0), UNREGISTERED(1);
+
+        private final int value;
+
+        REGISTRATION_3D(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+
+        public static boolean inEnum(int checkValue) {
+            REGISTRATION_3D[] enumValues = REGISTRATION_3D.values();
+            for (REGISTRATION_3D enumValue : enumValues) {
+                if (enumValue.getValue() == checkValue) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    public enum PIXEL_STORAGE_2D {
+        ROW(0), COLUMN(1);
+
+        private final int value;
+
+        PIXEL_STORAGE_2D(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+
+        public static boolean inEnum(int checkValue) {
+            PIXEL_STORAGE_2D[] enumValues = PIXEL_STORAGE_2D.values();
+            for (PIXEL_STORAGE_2D enumValue : enumValues) {
+                if (enumValue.getValue() == checkValue) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    public enum PIXEL_STORAGE_3D {
+        ROW(0), COLUMN(1);
+
+        private final int value;
+
+        PIXEL_STORAGE_3D(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+
+        public static boolean inEnum(int checkValue) {
+            PIXEL_STORAGE_3D[] enumValues = PIXEL_STORAGE_3D.values();
+            for (PIXEL_STORAGE_3D enumValue : enumValues) {
+                if (enumValue.getValue() == checkValue) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
     // -- Constants --
     public static final int numImages = 2;
 
     public static final int imageIndex2D = 0;
     public static final int imageIndex3D = 1;
+
+    public static final int headerSize = 542;
+
+    public static final int SIGNATURE_LEN = 3;
+    public static final int TRAILER_LEN = 4;
 
     // -- AbstractFormat Methods --
 
@@ -177,16 +350,27 @@ public class PSIFormat extends AbstractFormat {
         // -- Constants --
 
         public static final String PSI_MAGIC_STRING = "psi";
+        public static final String PSI_TRAILER_STRING = "@@@@";
 
         // -- Checker API Methods --
+
+        @Override
+        public boolean suffixSufficient() {
+            return false;
+        }
 
         @Override
         public boolean isFormat(final DataHandle<Location> stream)
                 throws IOException
         {
-            final int blockLen = 3;
-            if (!FormatTools.validStream(stream, blockLen, false)) return false;
-            return stream.readString(blockLen).equals(PSI_MAGIC_STRING);
+            if (!FormatTools.validStream(stream, SIGNATURE_LEN, false)) return false;
+            boolean correctSignature = stream.readString(SIGNATURE_LEN).startsWith(PSI_MAGIC_STRING);
+
+            if (stream.length() - TRAILER_LEN < 0) return false;
+            stream.seek(stream.length() - TRAILER_LEN);
+            boolean correctTrailer = stream.readString(TRAILER_LEN).startsWith(PSI_TRAILER_STRING);
+
+            return correctSignature && correctTrailer;
         }
 
     }
@@ -214,7 +398,16 @@ public class PSIFormat extends AbstractFormat {
 
             // Global Metadata
 
-            globalTable.put("Version", getSource().readString(5));
+            globalTable.put("Signature", getSource().readString(SIGNATURE_LEN));
+
+            String version = getSource().readString(5);
+            if (!(Character.isDigit(version.charAt(0))
+                    && version.charAt(1) == '.'
+                    && Character.isDigit(version.charAt(2))
+                    && Character.isDigit(version.charAt(3)))) {
+                throw new FormatException("[Metadata] Version Format Is Incorrect\n");
+            }
+            globalTable.put("Version", version);
             globalTable.put("Software Version", getSource().readString(9));
             globalTable.put("State Name", getSource().readString(3));
             globalTable.put("Route Name", getSource().readString(13));
@@ -229,60 +422,137 @@ public class PSIFormat extends AbstractFormat {
 
             // 2D Image Metadata
 
-            meta.setPixelStorageOrder2D(getSource().readUnsignedByte());
-            table2D.put("Pixel Storage Order", meta.getPixelStorageOrder2D());
+            int pixelStorageOrder2D = getSource().readUnsignedByte();
+            if (!PIXEL_STORAGE_2D.inEnum(pixelStorageOrder2D)) {
+                throw new FormatException("[Metadata] Unrecognized 2D Pixel Storage Order Value\n");
+            }
+            meta.setPixelStorageOrder2D(pixelStorageOrder2D);
+            table2D.put("Pixel Storage Order", pixelStorageOrder2D);
 
-            meta.setCodec2D(getSource().readUnsignedByte());
-            table2D.put("Codec", meta.getCodec2D());
+            int codec2D = getSource().readUnsignedByte();
+            if (!CODEC_2D.inEnum(codec2D)) {
+                throw new FormatException("[Metadata] Unrecognized 2D Codec Value\n");
+            }
+            meta.setCodec2D(codec2D);
+            table2D.put("Codec", codec2D);
 
-            table2D.put("Longitudinal Resolution", getSource().readFloat());
-            table2D.put("Transverse Resolution", getSource().readFloat());
+            float longitudinalResolution2D = getSource().readFloat();
+            float transverseResolution2D = getSource().readFloat();
+            table2D.put("Longitudinal Resolution", longitudinalResolution2D);
+            table2D.put("Transverse Resolution", transverseResolution2D);
 
-            meta.setWidth2D(getSource().readInt());
-            table2D.put("Width", meta.getWidth2D());
+            int width2D = getSource().readInt();
+            meta.setWidth2D(width2D);
+            table2D.put("Width", width2D);
 
-            meta.setLength2D(getSource().readInt());
-            table2D.put("Length", meta.getLength2D());
+            int length2D = getSource().readInt();
+            meta.setLength2D(length2D);
+            table2D.put("Length", length2D);
 
             int bitDepth2D = getSource().readUnsignedByte();
+            if (!DATA_BIT_DEPTH_2D.inEnum(bitDepth2D)) {
+                throw new FormatException("[Metadata] Unrecognized 2D Bit Depth Value\n");
+            }
             table2D.put("Data Bit Depth", bitDepth2D);
 
             long dataSize2D = Integer.toUnsignedLong(getSource().readInt());
+            if (dataSize2D > 0) {
+                if (width2D <= 0) {
+                    throw new FormatException("[Metadata] 2D Width Must Be A Positive Value\n");
+                }
+                if (length2D <= 0) {
+                    throw new FormatException("[Metadata] 2D Length Must Be A Positive Value\n");
+                }
+                if (longitudinalResolution2D <= 0) {
+                    throw new FormatException("[Metadata] 2D Longitudinal Resolution Must Be A Positive Value\n");
+                }
+                if (transverseResolution2D <= 0) {
+                    throw new FormatException("[Metadata] 2D Transverse Resolution Must Be A Positive Value\n");
+                }
+
+                if (codec2D == CODEC_2D.BIN_UNCOMPRESSED.getValue()) {
+                    if (!(dataSize2D == (bitDepth2D / 8) * width2D * length2D)) {
+                        throw new FormatException("[Metadata] 2D Data Size Does Not Match 2D Width, 2D Length, and 2D Bit Depth\n");
+                    }
+                }
+            }
             table2D.put("Data Size", dataSize2D);
 
             table2D.put("Compression Quality", getSource().readFloat());
 
             // 3D Image Metadata
 
-            meta.setPixelStorageOrder3D(getSource().readUnsignedByte());
-            table3D.put("Pixel Storage Order", meta.getPixelStorageOrder3D());
+            int pixelStorageOrder3D = getSource().readUnsignedByte();
+            if (!PIXEL_STORAGE_3D.inEnum(pixelStorageOrder3D)) {
+                throw new FormatException("[Metadata] Unrecognized 3D Pixel Storage Order Value\n");
+            }
+            meta.setPixelStorageOrder3D(pixelStorageOrder3D);
+            table3D.put("Pixel Storage Order", pixelStorageOrder3D);
 
-            meta.setCodec3D(getSource().readUnsignedByte());
-            table3D.put("Codec", meta.getCodec3D());
+            int codec3D = getSource().readUnsignedByte();
+            if (!CODEC_3D.inEnum(codec3D)) {
+                throw new FormatException("[Metadata] Unrecognized 3D Codec Value\n");
+            }
+            meta.setCodec3D(codec3D);
+            table3D.put("Codec", codec3D);
 
-            table3D.put("Longitudinal Resolution", getSource().readFloat());
-            table3D.put("Transverse Resolution", getSource().readFloat());
-            table3D.put("Vertical Resolution", getSource().readFloat());
+            float longitudinalResolution3D = getSource().readFloat();
+            float transverseResolution3D = getSource().readFloat();
+            float verticalResolution3D = getSource().readFloat();
+            table3D.put("Longitudinal Resolution", longitudinalResolution3D);
+            table3D.put("Transverse Resolution", transverseResolution3D);
+            table3D.put("Vertical Resolution", verticalResolution3D);
 
-            meta.setWidth3D(getSource().readInt());
-            table3D.put("Width", meta.getWidth3D());
+            int width3D = getSource().readInt();
+            meta.setWidth3D(width3D);
+            table3D.put("Width", width3D);
 
-            meta.setLength3D(getSource().readInt());
-            table3D.put("Length", meta.getLength3D());
+            int length3D = getSource().readInt();
+            meta.setLength3D(length3D);
+            table3D.put("Length", length3D);
 
             int bitDepth3D = getSource().readUnsignedByte();
+            if (!DATA_BIT_DEPTH_3D.inEnum(bitDepth3D)) {
+                throw new FormatException("[Metadata] Unrecognized 3D Bit Depth Value\n");
+            }
             table3D.put("Data Bit Depth", bitDepth3D);
 
             long dataSize3D = Integer.toUnsignedLong(getSource().readInt());
+            if (dataSize3D > 0) {
+                if (width3D <= 0) {
+                    throw new FormatException("[Metadata] 3D Width Must Be A Positive Value\n");
+                }
+                if (length3D <= 0) {
+                    throw new FormatException("[Metadata] 3D Length Must Be A Positive Value\n");
+                }
+                if (longitudinalResolution3D <= 0) {
+                    throw new FormatException("[Metadata] 3D Longitudinal Resolution Must Be A Positive Value\n");
+                }
+                if (transverseResolution3D <= 0) {
+                    throw new FormatException("[Metadata] 3D Transverse Resolution Must Be A Positive Value\n");
+                }
+
+                if (codec3D == CODEC_3D.BIN_UNCOMPRESSED.getValue()) {
+                    if (!(dataSize3D == (bitDepth3D / 8) * width3D * length3D)) {
+                        throw new FormatException("[Metadata] 3D Data Size Does Not Match 3D Width, 3D Length, and 3D Bit Depth\n");
+                    }
+                }
+            }
             table3D.put("Data Size", dataSize3D);
 
             table3D.put("Compression Quality", getSource().readFloat());
-            table3D.put("Registration", getSource().readUnsignedByte());
+
+            int registration3D = getSource().readUnsignedByte();
+            if (!REGISTRATION_3D.inEnum(registration3D)) {
+                throw new FormatException("[Metadata] Unrecognized 3D Registration Value\n");
+            }
+            table3D.put("Registration", registration3D);
 
             // Global Metadata
 
             globalTable.put("Reference Range Value", getSource().readFloat());
-            globalTable.put("Metadata Data Size", Integer.toUnsignedLong(getSource().readInt()));
+            long metadataSize = Integer.toUnsignedLong(getSource().readInt());
+            globalTable.put("Metadata Data Size", metadataSize);
             globalTable.put("Speed", getSource().readFloat());
             globalTable.put("Time Stamp", getSource().readLong());
             globalTable.put("Vehicle Name", getSource().readString(33));
@@ -294,16 +564,18 @@ public class PSIFormat extends AbstractFormat {
             getSource().skipBytes(256);
 
             meta.setOffset2D(getSource().offset());
-            System.out.println("2D Image Data Offset: " + meta.getOffset2D());
+            // System.out.println("2D Image Data Offset: " + meta.getOffset2D());
 
             getSource().skip(dataSize2D);
             meta.setOffset3D(getSource().offset());
-            System.out.println("3D Image Data Offset: " + meta.getOffset3D());
+            // System.out.println("3D Image Data Offset: " + meta.getOffset3D());
 
-            System.out.println("3D Image Data Size: " + dataSize3D);
+            if (!(getSource().length() == SIGNATURE_LEN + headerSize + dataSize2D + dataSize3D + metadataSize + TRAILER_LEN)) {
+                throw new FormatException("[Metadata] File Size Does Not Match Expected Value\n");
+            }
 
             if (dataSize2D == 0 && dataSize3D == 0) {
-                throw new FormatException("No 2D or 3D Image Data Present");
+                throw new FormatException("[Metadata] Both 2D And 3D Data Size Must Not Be 0\n");
             }
 
             if (dataSize2D > 0) {
