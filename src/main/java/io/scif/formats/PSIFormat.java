@@ -195,8 +195,8 @@ public class PSIFormat extends AbstractFormat {
     // -- Constants --
     public static final int numImages = 2;
 
-    public static final int imageIndex2D = 0;
-    public static final int imageIndex3D = 1;
+    public static final int imageIndex2D = 1;
+    public static final int imageIndex3D = 0;
 
     public static final int headerSize = 542;
 
