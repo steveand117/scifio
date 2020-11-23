@@ -5,7 +5,6 @@ import io.scif.config.SCIFIOConfig;
 import io.scif.util.FormatTools;
 
 import java.io.IOException;
-import java.util.StringTokenizer;
 
 import net.imagej.axis.Axes;
 import net.imglib2.Interval;
@@ -13,7 +12,6 @@ import net.imglib2.Interval;
 import org.scijava.io.handle.DataHandle;
 import org.scijava.io.handle.DataHandle.ByteOrder;
 import org.scijava.io.handle.DataHandleService;
-import org.scijava.io.location.BytesLocation;
 import org.scijava.io.location.Location;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
@@ -195,8 +193,8 @@ public class PSIFormat extends AbstractFormat {
     // -- Constants --
     public static final int numImages = 2;
 
-    public static final int imageIndex2D = 0;
-    public static final int imageIndex3D = 1;
+    public static final int imageIndex2D = 1;
+    public static final int imageIndex3D = 0;
 
     public static final int headerSize = 542;
 
@@ -325,6 +323,7 @@ public class PSIFormat extends AbstractFormat {
             meta2D.setIndexed(false);
             meta2D.setFalseColor(false);
             meta2D.setMetadataComplete(true);
+
 
             final ImageMetadata meta3D = get(PSIFormat.imageIndex3D);
 
@@ -564,11 +563,9 @@ public class PSIFormat extends AbstractFormat {
             getSource().skipBytes(256);
 
             meta.setOffset2D(getSource().offset());
-            // System.out.println("2D Image Data Offset: " + meta.getOffset2D());
 
             getSource().skip(dataSize2D);
             meta.setOffset3D(getSource().offset());
-            // System.out.println("3D Image Data Offset: " + meta.getOffset3D());
 
             if (!(getSource().length() == SIGNATURE_LEN + headerSize + dataSize2D + dataSize3D + metadataSize + TRAILER_LEN)) {
                 throw new FormatException("[Metadata] File Size Does Not Match Expected Value\n");
@@ -594,10 +591,6 @@ public class PSIFormat extends AbstractFormat {
                 }
             }
 
-//            System.out.println("2D Width: " + table2D.get("Width"));
-//            System.out.println("2D Length: " + table2D.get("Length"));
-//            System.out.println("2D Data Bit Depth: " + table2D.get("Data Bit Depth"));
-//            System.out.println("2D Data Size: " + table2D.get("Data Size"));
         }
 
     }
@@ -622,6 +615,8 @@ public class PSIFormat extends AbstractFormat {
                                         final SCIFIOConfig config) throws FormatException, IOException
         {
             final byte[] buf = plane.getData();
+            // System.out.println("For image index: " + imageIndex + "\nPlane index: " + planeIndex + "\nplane lengths " +
+                    // Arrays.toString(plane.getLengths()) + "\nbounds: " + bounds.toString());
             final Metadata meta = getMetadata();
             FormatTools.checkPlaneForReading(meta, imageIndex, planeIndex, buf.length,
                     bounds);
@@ -638,6 +633,7 @@ public class PSIFormat extends AbstractFormat {
                     readPlane(getHandle(), imageIndex, bounds, plane);
                 }
             }
+
             return plane;
 
         }
